@@ -43,9 +43,7 @@ public class FileStorageService {
             if (!VALID_FILENAME_PATTERN.matcher(originalName).matches()) {
                 invalidFiles.add(originalName);
                 continue;
-            }
-
-            if (repository.findByFileName(originalName).isPresent()) {
+            }else if (repository.findByFileName(originalName).isPresent()) {
                 duplicateFiles.add(originalName);
                 continue;
             }
