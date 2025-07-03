@@ -17,21 +17,20 @@ import java.util.regex.Pattern;
 
 @Service
 public class FileStorageService {
-
     @Value("${file.upload-dir}")
     private String uploadDir;
 
     private final UploadedFileRepository repository;
 
-    // Accept only letters, digits, dots, underscores, and hyphens
     private static final Pattern VALID_FILENAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_.-]+$");
 
     public FileStorageService(UploadedFileRepository repository) {
         this.repository = repository;
     }
 
-    public List<FileUploadResponse> storeFiles(MultipartFile[] files) throws IOException {
-        List<FileUploadResponse> responses = new ArrayList<>();
+    public String storeFiles(MultipartFile[] files, List<FileUploadResponse> responses) throws IOException {
+        List<String> duplicateFiles = new ArrayList<>();
+        List<String> invalidFiles = new ArrayList<>();
 
         Path dirPath = Paths.get(uploadDir);
         if (!Files.exists(dirPath)) {
@@ -41,27 +40,63 @@ public class FileStorageService {
         for (MultipartFile file : files) {
             String originalName = Path.of(file.getOriginalFilename()).getFileName().toString();
 
-            // Validate
             if (!VALID_FILENAME_PATTERN.matcher(originalName).matches()) {
-                throw new IllegalArgumentException("Invalid file name: " + originalName);
+                invalidFiles.add(originalName);
+                continue;
             }
 
-            // Duplicate check
             if (repository.findByFileName(originalName).isPresent()) {
-                throw new IllegalArgumentException("Duplicate file: " + originalName);
+                duplicateFiles.add(originalName);
+                continue;
             }
 
-            // Save file
             Path targetPath = dirPath.resolve(originalName);
             Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
 
-            // Save DB record
             UploadedFile saved = repository.save(new UploadedFile(originalName));
-
             responses.add(new FileUploadResponse(saved.getId(), saved.getFileName()));
         }
 
-        return responses;
-    }
-}
+        StringBuilder status = new StringBuilder();
+        if (!duplicateFiles.isEmpty()) {
+            status.append("Duplicate files skipped: ").append(String.join(", ", duplicateFiles)).append(". ");
+        }
+        if (!invalidFiles.isEmpty()) {
+            status.append("Invalid filenames skipped: ").append(String.join(", ", invalidFiles)).append(". ");
+        }
+        if (responses.isEmpty() && status.length() == 0) {
+            status.append("No files uploaded.");
+        } else if (!responses.isEmpty() && status.length() == 0) {
+            status.append("All files uploaded successfully.");
+        }
 
+        return status.toString().trim();
+    }
+
+    public String deleteFileById(Long id) throws IOException {
+        UploadedFile file = repository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("File not found with ID: " + id));
+
+        Path filePath = Paths.get(uploadDir).resolve(file.getFileName());
+
+        if (Files.exists(filePath)) {
+            Files.delete(filePath);
+        }
+
+        repository.deleteById(id);
+
+        return "File '" + file.getFileName() + "' deleted successfully.";
+    }
+
+    public List<UploadedFile> getAllFiles() {
+        return repository.findAll();
+    }
+
+    public UploadedFile getFileById(Long id) {
+        return repository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("File not found with ID: " + id));
+    }
+
+
+
+}

@@ -1,26 +1,4 @@
-//
-//import jakarta.persistence.*;
-//import lombok.Data;
-//
-//@Entity
-//@Data
-//
-//
-//public class UploadedFile {
-//
-//    @Id
-//    @GeneratedValue(strategy = GenerationType.IDENTITY)
-//    private Long fileid;
-//
-//    private String fileName;
-//
-//    private String fileType;
-//
-//    @Lob
-//    @Column(length = 100000)
-//    private String content;
-//}
-//
+
 package com.example.File.Management.System.entity;
 
 
@@ -28,6 +6,10 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+
+import java.time.LocalDateTime;
+
+
 
 @Entity
 @Table(name = "uploaded_files")
@@ -43,11 +25,13 @@ public class UploadedFile {
     @Column(name = "file_name", unique = true, nullable = false)
     private String fileName;
 
-//    public UploadedFile(String originalName) {
-//    }
+    @Column(name = "upload_time", nullable = false)
+    private LocalDateTime uploadTime;
 
     public UploadedFile(String fileName) {
         this.fileName = fileName;
+        this.uploadTime = LocalDateTime.now();
     }
+
 
 }
